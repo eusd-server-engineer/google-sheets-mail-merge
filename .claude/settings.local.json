@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(wc:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test)",
+      "Bash(SKIP_AUTH=true npx playwright test:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint:fix:*)",
+      "Bash(SKIP_AUTH=true npm run test:e2e:*)"
     ]
   }
 }

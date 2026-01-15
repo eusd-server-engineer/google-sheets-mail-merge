@@ -1,0 +1,108 @@
+name: Deploy
+
+on:
+  # Deploy to staging on push to main
+  push:
+    branches: [main]
+
+  # Manual deployment to production
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.environment == 'staging'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Setup CLASP credentials
+        run: |
+          echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.clasprc.json
+          echo '{"scriptId":"${{ secrets.APPS_SCRIPT_ID_STAGING }}","rootDir":"./src"}' > .clasp.json
+
+      - name: Deploy to staging
+        run: |
+          npx clasp push --force
+          npx clasp version "Staging deployment $(date +%Y-%m-%d_%H-%M-%S)"
+
+      - name: Notify deployment
+        run: |
+          echo "✅ Deployed to staging"
+          echo "Script ID: ${{ secrets.APPS_SCRIPT_ID_STAGING }}"
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'production'
+    environment: production
+    needs: []  # Explicit: no dependencies, manual trigger only
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Setup CLASP credentials
+        run: |
+          echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.clasprc.json
+          echo '{"scriptId":"${{ secrets.APPS_SCRIPT_ID_PROD }}","rootDir":"./src"}' > .clasp.json
+
+      - name: Deploy to production
+        run: |
+          npx clasp push --force
+          VERSION=$(npx clasp version "Production v$(date +%Y.%m.%d)" | grep -oP '(?<=- )\d+')
+          npx clasp deploy --versionNumber $VERSION --description "Production release"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Production Release v${{ github.run_number }}
+          body: |
+            Production deployment triggered manually.
+
+            **Apps Script Version:** Auto-generated
+            **Deployed by:** ${{ github.actor }}
+          draft: false
+          prerelease: false
+
+      - name: Notify deployment
+        run: |
+          echo "🚀 Deployed to production"
+          echo "Script ID: ${{ secrets.APPS_SCRIPT_ID_PROD }}"

@@ -5,6 +5,14 @@
 node_modules/
 package-lock.json
 
+# Environment
+.env
+.env.*
+!.env.example
+
+# Claude Code local settings
+.claude/settings.local.json
+
 # OS
 .DS_Store
 Thumbs.db
@@ -17,3 +25,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Test artifacts
+test-results/
+playwright-report/
+coverage/
